@@ -24,7 +24,7 @@ int main() {
             } catch (std::exception& ex) {
                 std::cout << ex.what() << "\n";
             }
-            figures.Push(new_figure);
+            figures.Insert(it, new_figure);
             std::cout << new_figure << "\n";
         } else if (command == "erase") {
             size_t index;
