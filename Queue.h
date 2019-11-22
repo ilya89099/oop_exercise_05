@@ -21,7 +21,7 @@ namespace Containers {
         QueueNode(T new_value) : value(new_value) {}
         T value;
         std::shared_ptr<QueueNode> next = nullptr;
-        std::shared_ptr<QueueNode> prev = nullptr;
+        std::weak_ptr<QueueNode> prev;
     };
 
     //Implementation of Queue
@@ -35,19 +35,29 @@ namespace Containers {
             head = tail;
         }
 
-        Queue(const Queue&) = delete;
+        Queue(const Queue& q) = delete;
         Queue& operator = (const Queue&) = delete;
-
         void Pop() {
             if (Empty()) {
                 throw std::out_of_range("Pop from empty queue");
             }
             head = head->next;
-            head->prev = nullptr;
         }
 
-        const T &Top() const {
+        const T& Top() const {
             return head->value;
+        }
+
+        T& Top() {
+            return head->value;
+        }
+
+        size_t Size() const {
+            size_t size = 0;
+            for (auto i : *this) {
+                size++;
+            }
+            return size;
         }
 
         void Push(const T &value) {
@@ -57,7 +67,7 @@ namespace Containers {
                 head->next = tail;
                 tail->prev = head;
             } else {
-                tail->prev->next = new_elem;
+                tail->prev.lock()->next = new_elem;
                 new_elem->prev = tail->prev;
                 new_elem->next = tail;
                 tail->prev = new_elem;
@@ -69,19 +79,19 @@ namespace Containers {
         }
 
         QueueConstIterator<T> begin() const {
-            return QueueConstIterator(head, *this);
+            return QueueConstIterator(head);
         }
 
         QueueConstIterator<T> end() const {
-            return QueueConstIterator(tail, *this);
+            return QueueConstIterator(tail);
         }
 
         QueueIterator<T> begin() {
-            return QueueIterator(head, *this);
+            return QueueIterator(head);
         }
 
         QueueIterator<T> end() {
-            return QueueIterator(tail, *this);
+            return QueueIterator(tail);
         }
 
         void Erase(QueueIterator<T> it) {
@@ -95,8 +105,9 @@ namespace Containers {
             if (it == begin()) {
                 Pop();
             } else {
-                std::shared_ptr<QueueNode<T>> prev_ptr = it_ptr->prev, next_ptr = it_ptr->next;
-                prev_ptr->next = next_ptr;
+                std::weak_ptr<QueueNode<T>> prev_ptr = it_ptr->prev;
+                std::shared_ptr<QueueNode<T>> next_ptr = it_ptr->next;
+                prev_ptr.lock()->next = next_ptr;
                 next_ptr->prev = prev_ptr;
             }
         }
@@ -116,9 +127,10 @@ namespace Containers {
                 head->prev = new_elem;
                 head = new_elem;
             } else {
-                std::shared_ptr<QueueNode<T>> prev_ptr = it_ptr->prev, next_ptr = it_ptr;
+                std::shared_ptr<QueueNode<T>> next_ptr = it_ptr;
+                std::weak_ptr<QueueNode<T>> prev_ptr = it_ptr->prev;
                 new_elem->prev = prev_ptr;
-                prev_ptr->next = new_elem;
+                prev_ptr.lock()->next = new_elem;
                 new_elem->next = next_ptr;
                 next_ptr->prev = new_elem;
             }
@@ -140,9 +152,13 @@ namespace Containers {
         using difference_type = ptrdiff_t;
         using iterator_category = std::forward_iterator_tag;
 
-        QueueIterator(std::shared_ptr<QueueNode<T>> init_ptr, Queue<T>& col_link) : node(init_ptr), collection(col_link) {}
+        QueueIterator(std::shared_ptr<QueueNode<T>> init_ptr) : node(init_ptr) {}
 
-        QueueIterator(const QueueIterator& other) : node(other.node), collection(other.collection) {}
+        QueueIterator(const QueueIterator& other) : node(other.node) {}
+        QueueIterator& operator = (const QueueIterator& other) {
+            node = other.node;
+            return *this;
+        }
 
         bool operator == (const QueueIterator& other) const {
             auto lhs_l = node.lock(), rhs_l = other.node.lock();
@@ -159,7 +175,7 @@ namespace Containers {
         QueueIterator& operator++() { // prefix
             std::shared_ptr<QueueNode<T>> temp = node.lock();
             if (temp) {
-                if (*this == collection.end()) {
+                if (temp->next == nullptr) {
                     throw std::out_of_range("Going out of container boundaries");
                 }
                 temp = temp->next;
@@ -180,7 +196,7 @@ namespace Containers {
         T& operator* () const {
             std::shared_ptr<QueueNode<T>> temp = node.lock();
             if (temp) {
-                if (*this == collection.end()) {
+                if (temp->next == nullptr) {
                     throw std::runtime_error("Dereferencing of end iterator");
                 }
                 return temp->value;
@@ -191,8 +207,6 @@ namespace Containers {
 
     private:
         std::weak_ptr<QueueNode<T>> node;
-        Queue<T>& collection;
-
 
     };
 
@@ -207,9 +221,14 @@ namespace Containers {
         using difference_type = ptrdiff_t;
         using iterator_category = std::forward_iterator_tag;
 
-        QueueConstIterator(std::shared_ptr<QueueNode<T>> init_ptr, Queue<T>& col_link) : collection(col_link), node(init_ptr) {}
+        QueueConstIterator(std::shared_ptr<QueueNode<T>> init_ptr) : node(init_ptr) {}
 
-        QueueConstIterator(const QueueConstIterator& other) : collection(other.collection), node(other.node) {}
+        QueueConstIterator(const QueueConstIterator& other) : node(other.node) {}
+
+        QueueConstIterator& operator = (const QueueConstIterator& other) {
+            node = other.node;
+            return *this;
+        }
 
         bool operator == (const QueueConstIterator& other) const {
             auto lhs_l = node.lock(), rhs_l = other.node.lock();
@@ -226,7 +245,7 @@ namespace Containers {
         QueueConstIterator& operator++() { // prefix
             std::shared_ptr<QueueNode<T>> temp = node.lock();
             if (temp) {
-                if (*this == collection.end()) {
+                if (temp->next == nullptr) {
                     throw std::out_of_range("Going out of container boundaries");
                 }
                 temp = temp->next;
@@ -247,7 +266,7 @@ namespace Containers {
         const T& operator* () const {
             std::shared_ptr<QueueNode<T>> temp = node.lock();
             if (temp) {
-                if (*this == collection.end()) {
+                if (temp->next == nullptr) {
                     throw std::runtime_error("Dereferencing of end iterator");
                 }
                 return temp->value;
@@ -258,7 +277,6 @@ namespace Containers {
 
     private:
         std::weak_ptr<QueueNode<T>> node;
-        Queue<T>& collection;
     };
 
 

@@ -10,6 +10,14 @@ int main() {
     Containers::Queue<Trapeze<int>> figures;
     while (std::cin >> command) {
         if (command == "add") {
+            size_t position;
+            std::cin >> position;
+            auto it = figures.begin();
+            try {
+                it = std::next(it, position);
+            } catch(std::exception& e) {
+                std::cout << "Position is too big\n";
+            }
             Trapeze<int> new_figure;
             try {
                 std::cin >> new_figure;
@@ -17,6 +25,7 @@ int main() {
                 std::cout << ex.what() << "\n";
             }
             figures.Push(new_figure);
+            std::cout << new_figure << "\n";
         } else if (command == "erase") {
             size_t index;
             std::cin >> index;
@@ -27,6 +36,8 @@ int main() {
                 std::cout << "Index is too big\n";
                 continue;
             }
+        } else if (command == "size") {
+          std::cout << figures.Size() << "\n";
         } else if (command == "print") {
             std::for_each(figures.begin(), figures.end(), [] (const Trapeze<int>& fig) {
                 std::cout << fig << " ";
