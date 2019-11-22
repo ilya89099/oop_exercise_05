@@ -17,6 +17,7 @@ int main() {
                 it = std::next(it, position);
             } catch(std::exception& e) {
                 std::cout << "Position is too big\n";
+                continue;
             }
             Trapeze<int> new_figure;
             try {

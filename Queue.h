@@ -79,22 +79,25 @@ namespace Containers {
         }
 
         QueueConstIterator<T> begin() const {
-            return QueueConstIterator(head);
+            return QueueConstIterator(head, this);
         }
 
         QueueConstIterator<T> end() const {
-            return QueueConstIterator(tail);
+            return QueueConstIterator(tail, this);
         }
 
         QueueIterator<T> begin() {
-            return QueueIterator(head);
+            return QueueIterator(head, this);
         }
 
         QueueIterator<T> end() {
-            return QueueIterator(tail);
+            return QueueIterator(tail, this);
         }
 
         void Erase(QueueIterator<T> it) {
+            if (it.collection != this) {
+                throw std::runtime_error("Iterator does not belong to this collection");
+            }
             std::shared_ptr<QueueNode<T>> it_ptr = it.node.lock();
             if (!it_ptr) {
                 throw std::runtime_error("Iterator is corrupted");
@@ -113,6 +116,9 @@ namespace Containers {
         }
 
         void Insert(QueueIterator<T> it, const T& value) {
+            if (it.collection != this) {
+                throw std::runtime_error("Iterator does not belong to this collection");
+            }
             std::shared_ptr<QueueNode<T>> it_ptr = it.node.lock();
             if (!it_ptr) {
                 throw std::runtime_error("Iterator is corrupted");
@@ -152,9 +158,9 @@ namespace Containers {
         using difference_type = ptrdiff_t;
         using iterator_category = std::forward_iterator_tag;
 
-        QueueIterator(std::shared_ptr<QueueNode<T>> init_ptr) : node(init_ptr) {}
+        QueueIterator(std::shared_ptr<QueueNode<T>> init_ptr,const Queue<T>* ptr) : node(init_ptr), collection(ptr) {}
 
-        QueueIterator(const QueueIterator& other) : node(other.node) {}
+        QueueIterator(const QueueIterator& other) : node(other.node), collection(other.collection) {}
         QueueIterator& operator = (const QueueIterator& other) {
             node = other.node;
             return *this;
@@ -207,7 +213,7 @@ namespace Containers {
 
     private:
         std::weak_ptr<QueueNode<T>> node;
-
+        const Queue<T>* collection;
     };
 
     template<typename T>
@@ -221,9 +227,9 @@ namespace Containers {
         using difference_type = ptrdiff_t;
         using iterator_category = std::forward_iterator_tag;
 
-        QueueConstIterator(std::shared_ptr<QueueNode<T>> init_ptr) : node(init_ptr) {}
+        QueueConstIterator(std::shared_ptr<QueueNode<T>> init_ptr, const Queue<T>* ptr) : node(init_ptr), collection(ptr) {}
 
-        QueueConstIterator(const QueueConstIterator& other) : node(other.node) {}
+        QueueConstIterator(const QueueConstIterator& other) : node(other.node), collection(other.collection) {}
 
         QueueConstIterator& operator = (const QueueConstIterator& other) {
             node = other.node;
@@ -277,6 +283,7 @@ namespace Containers {
 
     private:
         std::weak_ptr<QueueNode<T>> node;
+        const Queue<T>* collection;
     };
 
 
